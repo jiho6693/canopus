@@ -3,60 +3,94 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NOINSEONG — flat brightness</title>
+  <title>NOINSEONG — permission center</title>
   <style>
     html,body{
       height:100%;
       margin:0;
       background:#050506;
       overflow:hidden;
-    }
-    body{
-      transition: background 1.2s ease;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
                    "Liberation Mono","Courier New", monospace;
     }
+    body{
+      transition: background 1.2s ease;
+    }
 
-    .hint{
+    /* ───────── 중앙 오버레이 ───────── */
+    .overlay{
       position:fixed;
-      left:16px; right:16px; bottom:14px;
-      font-size:12px;
-      color:rgba(255,255,255,0.55);
-      opacity:0;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(4px);
+      z-index:10;
+      opacity:1;
       transition: opacity .8s ease;
-      user-select:none;
+    }
+    .overlay.hidden{
+      opacity:0;
       pointer-events:none;
     }
-    .hint.show{ opacity:1; }
 
-    .btn{
-      position:fixed;
-      right:16px; bottom:14px;
-      padding:10px 12px;
+    .panel{
+      text-align:center;
+      padding:22px 26px;
+      border-radius:14px;
+      background: rgba(10,8,9,0.55);
+      border:1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      max-width: 280px;
+    }
+
+    .panel p{
+      margin:0 0 14px 0;
+      font-size:13px;
+      line-height:1.45;
+      color: rgba(255,255,255,0.75);
+      letter-spacing:0.01em;
+    }
+
+    .panel button{
+      padding:10px 14px;
       border-radius:10px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:rgba(0,0,0,0.25);
-      color:rgba(255,255,255,0.65);
+      border:1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.85);
       font-size:12px;
       cursor:pointer;
       backdrop-filter: blur(6px);
-      display:none;
     }
-    .btn.show{ display:block; }
+
+    .panel .note{
+      margin-top:10px;
+      font-size:11px;
+      color: rgba(255,255,255,0.45);
+    }
   </style>
 </head>
 <body>
 
-  <div class="hint" id="hint">위치 권한이 필요합니다.</div>
-  <button class="btn" id="btn">위치 허용</button>
+  <!-- 중앙 위치 허용 오버레이 -->
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <p>
+        이 화면은 사용자의 위치에 따라<br>
+        밝기가 달라집니다.
+      </p>
+      <button id="allowBtn">위치 허용</button>
+      <div class="note">
+        위치 정보는 저장되지 않습니다.
+      </div>
+    </div>
+  </div>
 
 <script>
 /**
- * 플랫 밝기 버전
- * - 그라데이션 없음
- * - 전체 화면 하나의 색/밝기
- * - 황백 기본 + 적갈 왜곡 아주 미세
- * - 37.8 이상 완전 블랙
+ * 플랫 밝기 + 중앙 위치 허용 UI
+ * iOS Safari 안정화 버전
  */
 
 const LIMIT = 37.8;
@@ -64,12 +98,11 @@ const JEJU  = 33.0;
 const BUSAN = 35.1;
 const SEOUL = 37.6;
 
-// 서울 기준 최소 밝기 (핵심 조절값)
+// 서울 기준 최소 밝기
 const SEOUL_VIS = 0.42;
 
-const body = document.body;
-const hint = document.getElementById('hint');
-const btn  = document.getElementById('btn');
+const overlay = document.getElementById('overlay');
+const allowBtn = document.getElementById('allowBtn');
 
 const clamp01 = x => Math.max(0, Math.min(1, x));
 const smoothstep = (e0,e1,x)=>{
@@ -77,81 +110,66 @@ const smoothstep = (e0,e1,x)=>{
   return t*t*(3-2*t);
 };
 
-// 가시성
 function visibilityFromLat(lat){
   if (lat >= LIMIT) return 0;
 
   const base = 1 - smoothstep(JEJU, SEOUL, lat);
   let vis = SEOUL_VIS + (1 - SEOUL_VIS) * base;
 
-  // 컷오프 직전 급감
   const nearCut = 1 - smoothstep(LIMIT - 0.10, LIMIT, lat);
   vis *= nearCut;
 
   return clamp01(vis);
 }
 
-// 대기 왜곡(적갈)
 function rednessFromLat(lat){
   return smoothstep(BUSAN, LIMIT, lat);
 }
 
 function setBlack(){
-  body.style.background = `rgb(0,0,0)`;
-  hint.classList.remove('show');
-  btn.classList.remove('show');
+  document.body.style.background = `rgb(0,0,0)`;
 }
 
 function applyState(lat){
   if (lat >= LIMIT){
     setBlack();
+    overlay.classList.add('hidden');
     return;
   }
 
   const vis = visibilityFromLat(lat);
   const red = rednessFromLat(lat);
 
-  // 황백 기본색 (고정)
-  const r = 255;
-  const g = 252;
-  const b = 235;
+  // 황백 기본 톤
+  const r = 255, g = 252, b = 235;
 
-  // 밝기: vis로만 제어
-  const baseA = 0.04 + 0.55 * vis;
-
-  // 적갈은 "색"이 아니라 공기 착색
+  const baseA = 0.05 + 0.60 * vis;
   const redShift = 0.08 * vis * red;
 
-  body.style.background = `
-    rgba(${r},${g},${b},${baseA + redShift})
-  `;
+  document.body.style.background =
+    `rgba(${r},${g},${b},${baseA + redShift})`;
 
-  hint.classList.remove('show');
-  btn.classList.remove('show');
-}
-
-function fallback(msg){
-  hint.textContent = msg || "위치 권한이 필요합니다.";
-  hint.classList.add('show');
-  btn.classList.add('show');
+  overlay.classList.add('hidden');
 }
 
 function requestLocation(){
   if (!('geolocation' in navigator)){
-    fallback("이 기기에서는 위치를 사용할 수 없습니다.");
+    setBlack();
     return;
   }
+
   navigator.geolocation.getCurrentPosition(
     pos => applyState(pos.coords.latitude),
-    err => fallback("위치 권한이 필요합니다."),
-    { enableHighAccuracy:false, timeout:8000, maximumAge:60000 }
+    err => {
+      // 거부/실패 시: 오버레이 유지 (다시 누를 수 있게)
+      setBlack();
+      overlay.classList.remove('hidden');
+    },
+    { enableHighAccuracy:false, timeout:12000, maximumAge:300000 }
   );
 }
 
-btn.addEventListener('click', requestLocation);
-
-// 자동 실행 (전시용)
-requestLocation();
+allowBtn.addEventListener('click', requestLocation);
 </script>
 </body>
 </html>
