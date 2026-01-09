@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NOINSEONG — flat brightness</title>
+  <style>
+    html,body{
+      height:100%;
+      margin:0;
+      background:#050506;
+      overflow:hidden;
+    }
+    body{
+      transition: background 1.2s ease;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                   "Liberation Mono","Courier New", monospace;
+    }
+
+    .hint{
+      position:fixed;
+      left:16px; right:16px; bottom:14px;
+      font-size:12px;
+      color:rgba(255,255,255,0.55);
+      opacity:0;
+      transition: opacity .8s ease;
+      user-select:none;
+      pointer-events:none;
+    }
+    .hint.show{ opacity:1; }
+
+    .btn{
+      position:fixed;
+      right:16px; bottom:14px;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.12);
+      background:rgba(0,0,0,0.25);
+      color:rgba(255,255,255,0.65);
+      font-size:12px;
+      cursor:pointer;
+      backdrop-filter: blur(6px);
+      display:none;
+    }
+    .btn.show{ display:block; }
+  </style>
+</head>
+<body>
+
+  <div class="hint" id="hint">위치 권한이 필요합니다.</div>
+  <button class="btn" id="btn">위치 허용</button>
+
+<script>
+/**
+ * 플랫 밝기 버전
+ * - 그라데이션 없음
+ * - 전체 화면 하나의 색/밝기
+ * - 황백 기본 + 적갈 왜곡 아주 미세
+ * - 37.8 이상 완전 블랙
+ */
+
+const LIMIT = 37.8;
+const JEJU  = 33.0;
+const BUSAN = 35.1;
+const SEOUL = 37.6;
+
+// 서울 기준 최소 밝기 (핵심 조절값)
+const SEOUL_VIS = 0.42;
+
+const body = document.body;
+const hint = document.getElementById('hint');
+const btn  = document.getElementById('btn');
+
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const smoothstep = (e0,e1,x)=>{
+  const t = clamp01((x-e0)/(e1-e0));
+  return t*t*(3-2*t);
+};
+
+// 가시성
+function visibilityFromLat(lat){
+  if (lat >= LIMIT) return 0;
+
+  const base = 1 - smoothstep(JEJU, SEOUL, lat);
+  let vis = SEOUL_VIS + (1 - SEOUL_VIS) * base;
+
+  // 컷오프 직전 급감
+  const nearCut = 1 - smoothstep(LIMIT - 0.10, LIMIT, lat);
+  vis *= nearCut;
+
+  return clamp01(vis);
+}
+
+// 대기 왜곡(적갈)
+function rednessFromLat(lat){
+  return smoothstep(BUSAN, LIMIT, lat);
+}
+
+function setBlack(){
+  body.style.background = `rgb(0,0,0)`;
+  hint.classList.remove('show');
+  btn.classList.remove('show');
+}
+
+function applyState(lat){
+  if (lat >= LIMIT){
+    setBlack();
+    return;
+  }
+
+  const vis = visibilityFromLat(lat);
+  const red = rednessFromLat(lat);
+
+  // 황백 기본색 (고정)
+  const r = 255;
+  const g = 252;
+  const b = 235;
+
+  // 밝기: vis로만 제어
+  const baseA = 0.04 + 0.55 * vis;
+
+  // 적갈은 "색"이 아니라 공기 착색
+  const redShift = 0.08 * vis * red;
+
+  body.style.background = `
+    rgba(${r},${g},${b},${baseA + redShift})
+  `;
+
+  hint.classList.remove('show');
+  btn.classList.remove('show');
+}
+
+function fallback(msg){
+  hint.textContent = msg || "위치 권한이 필요합니다.";
+  hint.classList.add('show');
+  btn.classList.add('show');
+}
+
+function requestLocation(){
+  if (!('geolocation' in navigator)){
+    fallback("이 기기에서는 위치를 사용할 수 없습니다.");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => applyState(pos.coords.latitude),
+    err => fallback("위치 권한이 필요합니다."),
+    { enableHighAccuracy:false, timeout:8000, maximumAge:60000 }
+  );
+}
+
+btn.addEventListener('click', requestLocation);
+
+// 자동 실행 (전시용)
+requestLocation();
+</script>
+</body>
+</html>
