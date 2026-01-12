@@ -3,168 +3,160 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Web Movie — Autoplay + Pause/Play</title>
+<title>Canopus — Web Video (Centered Text)</title>
+
 <style>
-  html,body{height:100%}
-  body{margin:0;background:#000;color:#22ff00;font-family:system-ui,"Noto Sans KR",sans-serif;overflow:hidden}
-  #stage{position:fixed;inset:0;overflow:hidden;background:#000}
-  .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-  .img-fill{position:absolute;inset:0;background:#000 center/cover no-repeat;will-change:transform,opacity}
-  .caption{text-align:center;position:absolute;left:6vw;right:6vw;bottom:6vh;font-weight:800;line-height:1.25;text-shadow:0 2px 12px rgb(255, 0, 200)}
-  .caption.small{font-size:min(2.8vw,18px)}
-  .caption.large{font-size:min(4vw,20px)}
-  #progress{position:fixed;left:0;right:0;top:0;height:3px;background:#111}
-  #bar{height:100%;width:0;background:#39ff14;transition:width .2s linear}
-  #pp{position:fixed;right:1vw;bottom:1vh;z-index:20;appearance:none;border:none;border-radius:99px;
-      padding:1px px 1px 1px;font-weight:900;background:#ffffff;color:#000;cursor:pointer}
+html,body{
+  margin:0;
+  height:100%;
+  background:#000;
+  overflow:hidden;
+  font-family:system-ui,"Noto Sans KR",sans-serif;
+}
+
+/* 무대 */
+#stage{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* 텍스트 + 버튼 래퍼 */
+#caption-wrap{
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
+
+#caption-wrap{
+  transform: translateY(45vh);
+}
+
+/* 네모 멈춤 버튼 */
+#pause-btn{
+  width:22px;
+  height:22px;
+  background:#22ff00;
+  border:2px solid #22ff00;
+  cursor:pointer;
+  flex-shrink:0;
+}
+
+#pause-btn.paused{
+  background:#ff2a2a;
+  border-color:#ff2a2a;
+}
+
+/* 텍스트 */
+#changing-text{
+  max-width:80vw;
+  text-align:center;
+  font-weight:800;
+  line-height:1.35;
+  font-size:min(3vw,20px);
+  color:#22ff00;
+  text-shadow:0 2px 12px rgb(255,0,200);
+  opacity:1;
+  transition:
+    opacity .35s ease,
+    transform .35s ease;
+  user-select:none;
+}
+
+#changing-text.fading{
+  opacity:0;
+}
+
+/* 미세 흔들림 */
+#changing-text.drift{
+  transform:translate3d(var(--dx,0px), var(--dy,0px), 0);
+}
 </style>
 </head>
+
 <body>
 
-<div id="stage"></div>
-<div id="progress"><div id="bar"></div></div>
-<button id="pp">PAUSE</button>
-
-<!-- 배경 음악: 처음엔 muted로 자동재생 시도, 사용자가 누르면 unmute -->
-<audio id="music" preload="auto" muted
-  src="https://cdn.pixabay.com/audio/2022/03/15/audio_8e2a8e.mp3"></audio>
+<div id="stage">
+  <div id="caption-wrap">
+    <div id="pause-btn" aria-label="pause/play"></div>
+    <div id="changing-text"></div>
+  </div>
+</div>
 
 <script>
-/* ===== 1) 타임라인 (초 단위) ===== */
-const TIMELINE = [
-  // t: 시작시간, dur: 지속, type: 'image' | 'text'
-  
-  { t: 0.4, dur: 5.0, type:'text', text:'Web, Video', size:'small' },
+window.addEventListener('load', () => {
 
-//   { t: 5,  dur: 6, type:'image',
-//     src:'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1920&auto=format&fit=crop',
-//     fadeIn:0.8, fadeOut:0.8, kb:{ zoom:1.15, pan:[5,-2] } },
-  { t: 6,  dur: 4.8, type:'text', text:'How to make a video using a website?', size:'small' },
+  const textEl  = document.getElementById('changing-text');
+  const btnEl   = document.getElementById('pause-btn');
 
-  { t: 11, dur: 4.8, type:'text', text:'It needs web', size:'small' },
+  const texts = [
+    "이론적으로 노인성을 관측할 수 있는 북방한계선은 북위 37.8°로 알려져 있다.",
+    "서울에서는 조건이 맞을 경우 간신히 관측할 수 있지만, 38°를 넘는 개성 이북부터는 관측 자체가 불가능하다.",
+    "노인성은 남쪽으로 갈수록 더 잘 보인다.",
+    "제주도에서는 비교적 안정적으로 관측되며, 부산에서는 맑은 겨울밤에 간혹 나타난다.",
+    "위도가 조금만 달라져도, 별의 존재는 곧바로 가시성의 문제로 바뀐다.",
+    "옛 기록에는 전쟁이나 나라가 혼란에 빠져 있을 때 노인성이 보이지 않다가,",
+    "천하가 안정되고 평화가 찾아오면 다시 보였다고 전해진다.",
+    "고대에는 적도에 가까운 지역에서 노인성이 항법의 기준으로 사용되었다.",
+    "현대에 이르러서도 카노푸스는 심우주 탐사에서 우주선의 위치와 방향을 판단하는 기준으로 기능한다.",
+    "카노푸스는 밝은 별이면서도 황도면에서 멀리 떨어져 있어 태양에 가려질 위험이 없다.",
+    "이 때문에 언제나 신뢰 가능한 기준점으로 간주된다.",
+    "1964년 이후 발사된 탐사선의 대부분은 카노푸스 추적기를 탑재해왔다."
+  ];
 
+  const intervalMs = 7000;
+  const fadeMs = 350;
+  const driftPx = 2;
 
-  { t: 17, dur: 4.8, type:'text', text:'text', size:'small' },
-  { t: 21, dur: 4.8, type:'text', text:'text, image', size:'small' },
-  { t: 26, dur: 4.8, type:'text', text:'text, image and sound', size:'small' },
-  { t: 31, dur: 4.8, type:'text', text:'but sound cannot play automatcally', size:'small' },
-];
-const TOTAL = Math.max(...TIMELINE.map(c => c.t + c.dur));
+  let index = 0;
+  let paused = false;
 
-/* ===== 2) 전역 상태 ===== */
-const stage = document.getElementById('stage');
-const bar   = document.getElementById('bar');
-const btn   = document.getElementById('pp');
-const music = document.getElementById('music');
+  let nextAt = performance.now() + intervalMs;
 
-let started = false;
-let paused  = false;
-let baseTime = 0;    // 재생 시작한 performance.now()
-let pauseOff = 0;    // 누적 재생 시간(초)
-let rafId = null;
+  textEl.textContent = texts[index];
+  textEl.classList.add('drift');
 
-const clips = TIMELINE.map(c => ({...c, _started:false}));
-const anims = new Set(); // 현재 활성화된 애니메이션들을 모아 pause/play 제어
+  function setText(next){
+    textEl.classList.add('fading');
+    setTimeout(() => {
+      textEl.textContent = next;
 
-/* ===== 3) 유틸 ===== */
-const nowS = () => performance.now()/1000;
-const curT = () => (paused ? pauseOff : (nowS() - baseTime));
+      const dx = (Math.random()*2 - 1) * driftPx;
+      const dy = (Math.random()*2 - 1) * driftPx;
+      textEl.style.setProperty('--dx', dx.toFixed(2)+'px');
+      textEl.style.setProperty('--dy', dy.toFixed(2)+'px');
 
-function addAnim(a){ if (!a) return; anims.add(a); a.onfinish = ()=>anims.delete(a); }
-function fade(layer, from, to, ms, delay=0){
-  const a = layer.animate([{opacity:from},{opacity:to}], {duration:ms, delay, fill:'forwards', easing:'ease'});
-  addAnim(a); return a;
-}
+      textEl.classList.remove('fading');
+    }, fadeMs);
+  }
 
-/* ===== 4) 클립 렌더러 ===== */
-function showImageClip(c){
-  const layer = document.createElement('div'); layer.className = 'layer'; stage.appendChild(layer);
-  const fill  = document.createElement('div'); fill.className  = 'img-fill';
-  fill.style.backgroundImage = `url('${c.src}')`; layer.appendChild(fill);
-
-  // 페이드 인/아웃
-  fade(layer, 0, 1, (c.fadeIn||0.6)*1000);
-  fade(layer, 1, 0, (c.fadeOut||0.6)*1000, Math.max(0,(c.dur - (c.fadeOut||0.6)))*1000)
-    .onfinish = ()=> layer.remove();
-
-  // Ken Burns
-  const z = c.kb?.zoom ?? 1.12; const pan = c.kb?.pan ?? [0,0];
-  addAnim(fill.animate(
-    [{ transform: `scale(1) translate(0%,0%)` },
-     { transform: `scale(${z}) translate(${pan[0]}%, ${pan[1]}%)` }],
-    { duration: c.dur*1000, easing:'linear', fill:'forwards' }
-  ));
-}
-
-function showTextClip(c){
-  const layer = document.createElement('div'); layer.className = 'layer'; stage.appendChild(layer);
-  const cap = document.createElement('div'); cap.className = `caption ${c.size||'small'}`; cap.textContent = c.text;
-  layer.appendChild(cap);
-  fade(layer, 0, 1, 400);
-  fade(layer, 1, 0, 500, Math.max(0,(c.dur - 0.5))*1000).onfinish = ()=>layer.remove();
-}
-
-/* ===== 5) 메인 루프(스케줄링) ===== */
-function loop(){
-  const t = curT();
-  // 새로 시작할 클립 실행
-  for (const c of clips){
-    if (!c._started && t >= c.t){
-      c._started = true;
-      if (c.type === 'image') showImageClip(c);
-      else if (c.type === 'text') showTextClip(c);
+  function tick(){
+    if (!paused){
+      const now = performance.now();
+      if (now >= nextAt - 16){
+        index = (index + 1) % texts.length;
+        setText(texts[index]);
+        nextAt += intervalMs;
+      }
     }
+    requestAnimationFrame(tick);
   }
-  // 진행바
-  bar.style.width = Math.min(100, (t/TOTAL)*100) + '%';
 
-  if (t < TOTAL + 1) rafId = requestAnimationFrame(loop);
-}
+  tick();
 
-/* ===== 6) 재생/일시정지 ===== */
-function play(){
-  if (!started){
-    started = true;
-    baseTime = nowS(); pauseOff = 0;
-    // 오디오: 자동재생 시도(초기 muted). 첫 버튼 클릭 시 unmute 예정.
-    music?.play().catch(()=>{});
-    loop();
-    btn.textContent = 'PAUSE';
-    return;
-  }
-  if (paused){
-    // 재개
-    baseTime = nowS() - pauseOff;
-    paused = false;
-    anims.forEach(a=>{ try{ a.play(); }catch(_){ } });
-    music && music.play().catch(()=>{});
-    rafId = requestAnimationFrame(loop);
-    btn.textContent = 'PAUSE';
-  }
-}
-function pause(){
-  if (!paused){
-    paused   = true;
-    pauseOff = curT();
-    cancelAnimationFrame(rafId);
-    anims.forEach(a=>{ try{ a.pause(); }catch(_){ } });
-    music && music.pause();
-    btn.textContent = 'PLAY';
-  }
-}
+  /* 네모 버튼 토글 */
+  btnEl.addEventListener('click', () => {
+    paused = !paused;
+    btnEl.classList.toggle('paused', paused);
+    if (!paused){
+      nextAt = performance.now() + intervalMs;
+    }
+  });
 
-btn.addEventListener('click', ()=>{
-  if (!started) { play(); music.muted = false; return; }
-  if (paused)   { play();  music.muted = false; }
-  else          { pause(); }
-});
-
-/* ===== 7) 자동 시작 ===== */
-window.addEventListener('DOMContentLoaded', ()=>{
-  play(); // 자동 시작
-  // 사용자가 한 번이라도 버튼을 누르면 음소거 해제
-  document.body.addEventListener('pointerdown', ()=>{ music.muted = false; }, { once:true });
 });
 </script>
+
 </body>
 </html>

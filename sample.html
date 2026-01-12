@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Canopus — Sample (Image + Text)</title>
+<style>
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:#000;
+    overflow:hidden;
+    font-family:system-ui,"Noto Sans KR",sans-serif;
+  }
+
+  /* stage */
+  #stage{
+    position:fixed;
+    inset:0;
+    background:#000;
+  }
+
+  /* 이미지 레이어 */
+  #image-layer{
+    position:absolute;
+    inset:0;
+    background:#000 center/cover no-repeat;
+    opacity:0.88;
+    transition:opacity 3.2s ease, filter 10s linear, transform 18s linear;
+    will-change:opacity, filter, transform;
+  }
+
+  /* 텍스트(영상 자막 위치: 중앙 아래) */
+  #caption-wrap{
+    position:absolute;
+    left:50%;
+    top:70%;
+    transform:translate(-50%, -50%);
+    display:flex;
+    align-items:center;
+    gap:16px;
+    max-width:88vw;
+    pointer-events:auto;
+  }
+
+  /* 네모 멈춤 버튼 */
+  #pause-btn{
+    width:22px;
+    height:22px;
+    background:#22ff00;
+    border:2px solid #22ff00;
+    cursor:pointer;
+    flex:0 0 auto;
+  }
+  #pause-btn.paused{
+    background:#ff2a2a;
+    border-color:#ff2a2a;
+  }
+
+  /* 텍스트 */
+  #changing-text{
+    text-align:center;
+    font-weight:800;
+    line-height:1.35;
+    font-size:min(3vw,20px);
+    color:#22ff00;
+    text-shadow:0 2px 12px rgb(255,0,200);
+    opacity:1;
+    transition:opacity .35s ease, transform .35s ease;
+    user-select:none;
+  }
+  #changing-text.fading{opacity:0;}
+  #changing-text.drift{
+    transform:translate3d(var(--dx,0px), var(--dy,0px), 0);
+  }
+
+  /* 상태에 따른 이미지 필터(아주 미세) */
+  body[data-state="day"]   { --img-filter: brightness(1.0) contrast(1.0) saturate(1.0); }
+  body[data-state="night"] { --img-filter: brightness(0.72) contrast(1.08) saturate(0.95); }
+  body[data-state="dawn"]  { --img-filter: brightness(0.86) contrast(1.02) saturate(1.06); }
+  body[data-state="cloudy"]{ --img-filter: brightness(0.92) contrast(1.02) saturate(0.95); }
+  body[data-state="rainy"] { --img-filter: brightness(0.88) contrast(1.06) saturate(0.92); }
+
+  #image-layer{ filter: var(--img-filter, none); }
+
+  /* 안내(개발 중일 때만; 필요 없으면 지워도 됨) */
+  #hint{
+    position:fixed; left:12px; top:10px;
+    color:rgba(34,255,0,.55);
+    font-size:12px;
+    user-select:none;
+  }
+</style>
+</head>
+<body data-state="day">
+
+<div id="stage">
+  <div id="image-layer"></div>
+
+  <div id="caption-wrap">
+    <div id="pause-btn" aria-label="pause/play"></div>
+    <div id="changing-text"></div>
+  </div>
+</div>
+
+<div id="hint">click square to pause/play</div>
+
+<script>
+window.addEventListener('load', () => {
+  const imageLayer = document.getElementById('image-layer');
+  const textEl = document.getElementById('changing-text');
+  const btnEl = document.getElementById('pause-btn');
+
+  // ✅ 샘플 이미지: 외부 URL (전시장에선 로컬 파일로 바꾸는 걸 추천)
+  const images = [
+    "https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?q=80&w=1920&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1470770903676-69b98201ea1c?q=80&w=1920&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=1920&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1454789548928-9efd52dc4031?q=80&w=1920&auto=format&fit=crop"
+  ];
+
+  const texts = [
+    "이론적으로 노인성을 관측할 수 있는 북방한계선은 북위 37.8°로 알려져 있다.",
+    "서울에서는 조건이 맞을 경우 간신히 관측할 수 있지만, 38°를 넘는 개성 이북부터는 관측 자체가 불가능하다.",
+    "노인성은 남쪽으로 갈수록 더 잘 보인다.",
+    "제주도에서는 비교적 안정적으로 관측되며, 부산에서는 맑은 겨울밤에 간혹 나타난다.",
+    "위도가 조금만 달라져도, 별의 존재는 곧바로 가시성의 문제로 바뀐다.",
+    "옛 기록에는 전쟁이나 나라가 혼란에 빠져 있을 때 노인성이 보이지 않다가,",
+    "천하가 안정되고 평화가 찾아오면 다시 보였다고 전해진다.",
+    "고대에는 적도에 가까운 지역에서 노인성이 항법의 기준으로 사용되었다.",
+    "현대에 이르러서도 카노푸스는 심우주 탐사에서 우주선의 위치와 방향을 판단하는 기준으로 기능한다.",
+    "카노푸스는 밝은 별이면서도 황도면에서 멀리 떨어져 있어 태양에 가려질 위험이 없다.",
+    "이 때문에 언제나 신뢰 가능한 기준점으로 간주된다.",
+    "1964년 이후 발사된 탐사선의 대부분은 카노푸스 추적기를 탑재해왔다."
+  ];
+
+  // 상태(아주 미세하게만)
+  const states = ["day","night","dawn","cloudy","rainy"];
+
+  const intervalMs = 7000;  // 텍스트 교체 간격
+  const fadeMs = 350;
+  const driftPx = 2;
+
+  let index = 0;
+  let paused = false;
+
+  // 최초 세팅
+  textEl.textContent = texts[index];
+  textEl.classList.add('drift');
+
+  // 첫 이미지 로드
+  imageLayer.style.backgroundImage = `url('${images[0]}')`;
+  // 아주 느린 Ken Burns 느낌(과하면 안 됨)
+  imageLayer.style.transform = `scale(1.02) translate(0px,0px)`;
+
+  // drift 최소화(목표 시간 기반)
+  let nextAt = performance.now() + intervalMs;
+
+  function setText(next){
+    textEl.classList.add('fading');
+    setTimeout(() => {
+      textEl.textContent = next;
+
+      const dx = (Math.random()*2 - 1) * driftPx;
+      const dy = (Math.random()*2 - 1) * driftPx;
+      textEl.style.setProperty('--dx', dx.toFixed(2)+'px');
+      textEl.style.setProperty('--dy', dy.toFixed(2)+'px');
+
+      textEl.classList.remove('fading');
+    }, fadeMs);
+  }
+
+  function setState(i){
+    // 3문장마다 상태 한번만 바뀌게 (슬라이드쇼 느낌 방지)
+    if (i % 3 !== 0) return;
+    document.body.dataset.state = states[(i/3) % states.length];
+  }
+
+  function setImage(i){
+    // 4문장마다 이미지 한번만 바뀌게 (슬라이드쇼 느낌 방지)
+    if (i % 4 !== 0) return;
+
+    imageLayer.style.opacity = 0;
+    setTimeout(() => {
+      const img = images[(i/4) % images.length];
+      imageLayer.style.backgroundImage = `url('${img}')`;
+      imageLayer.style.opacity = 0.88;
+
+      // 아주 느린 움직임(과하지 않게)
+      const z = 1.02 + Math.random()*0.03;
+      const tx = (Math.random()*2 - 1) * 12;
+      const ty = (Math.random()*2 - 1) * 8;
+      imageLayer.style.transform = `scale(${z.toFixed(3)}) translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px)`;
+    }, 1400);
+  }
+
+  function step(){
+    index = (index + 1) % texts.length;
+    setText(texts[index]);
+    setState(index);
+    setImage(index);
+  }
+
+  function tick(){
+    if (!paused){
+      const now = performance.now();
+      if (now >= nextAt - 16){
+        step();
+        nextAt += intervalMs;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  // 버튼 토글
+  btnEl.addEventListener('click', () => {
+    paused = !paused;
+    btnEl.classList.toggle('paused', paused);
+    if (!paused){
+      nextAt = performance.now() + intervalMs;
+    }
+  });
+
+  // 탭 돌아오면 타이밍 리셋(전시장 PC에서 안정적)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden){
+      nextAt = performance.now() + intervalMs;
+    }
+  });
+});
+</script>
+</body>
+</html>
