@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CANOPUS / Observation Instrument</title>
+  <style>
+    html,body{margin:0;height:100%;background:#05060a;color:#e8e8ee;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;}
+    #wrap{height:100%;display:grid;grid-template-rows:1fr auto;}
+    canvas{width:100%;height:100%;display:block;}
+    .panel{
+      display:grid; gap:10px;
+      padding:12px 14px;
+      border-top:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+    .kv{display:flex;gap:8px;align-items:baseline;opacity:.95}
+    .k{opacity:.65}
+    .v{font-variant-numeric: tabular-nums;}
+    .status{padding:4px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px}
+    .status.ok{border-color:rgba(160,255,190,.45);color:rgba(180,255,210,.92)}
+    .status.no{border-color:rgba(255,170,170,.45);color:rgba(255,190,190,.92)}
+    .hint{opacity:.6;font-size:12px;line-height:1.35}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    input[type="range"]{width:240px}
+    button{background:transparent;color:inherit;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:6px 10px;cursor:pointer}
+    button:hover{border-color:rgba(255,255,255,.35)}
+    .log{max-height:110px;overflow:auto;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px 10px;opacity:.85}
+    .log div{white-space:nowrap;font-size:12px;opacity:.85}
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div class="panel">
+    <div class="row">
+      <div class="kv"><span class="k">MODE</span><span class="v" id="mode">LIVE</span></div>
+      <div class="kv"><span class="k">LAT</span><span class="v" id="lat">—</span></div>
+      <div class="kv"><span class="k">VIRTUAL LAT</span><span class="v" id="vlat">—</span></div>
+      <div class="kv"><span class="k">ALT_MAX</span><span class="v" id="altmax">—</span></div>
+      <div class="status no" id="status">NOT OBSERVABLE</div>
+    </div>
+
+    <div class="row">
+      <div class="controls">
+        <button id="geoBtn">Request Location</button>
+        <button id="snapBtn">Log Attempt</button>
+        <button id="resetBtn">Reset Aim</button>
+        <span class="hint">Drag to aim · Wheel to fine-aim · Shift+D: toggle Drift Dial</span>
+      </div>
+      <div class="hint">
+        “장비는 보여주지 않는다. 조건을 만든다.”<br/>
+        (서울에서는 관측 불가가 기본값. 드리프트는 ‘이동 불가한 자리에서 조건만 남하시키는’ 조정 장치)
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="controls" id="driftUI" style="display:none">
+        <span class="k">DRIFT DIAL</span>
+        <input id="drift" type="range" min="0" max="1" step="0.001" value="0.0" />
+        <span class="hint">0 → 서울 근처 / 1 → 제주 근처 (가상)</span>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---- Curatorial switches ----
+  const EXHIBITION_LOCK = false; // true면 LIVE 위치는 표시만 하고, 관측은 기본적으로 "불가" 쪽으로 더 엄격히 연출 가능
+  const CANOPUS_DEC_DEG = -52.7; // Canopus declination approx (southern). Used for horizon/altitude logic.
+
+  // Virtual drift latitude endpoints (Seoul-ish → Jeju-ish)
+  const LAT_A = 37.56; // Seoul
+  const LAT_B = 33.50; // Jeju (rough)
+
+  // ---- DOM ----
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  const elMode = document.getElementById('mode');
+  const elLat = document.getElementById('lat');
+  const elVLat = document.getElementById('vlat');
+  const elAltMax = document.getElementById('altmax');
+  const elStatus = document.getElementById('status');
+
+  const geoBtn = document.getElementById('geoBtn');
+  const snapBtn = document.getElementById('snapBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  const driftUI = document.getElementById('driftUI');
+  const drift = document.getElementById('drift');
+  const logEl = document.getElementById('log');
+
+  // ---- State ----
+  let dpr = Math.min(2, window.devicePixelRatio || 1);
+  let W=0,H=0;
+  let aimX = 0, aimY = 0;     // aiming offsets (like azimuth/elevation gesture)
+  let aimVX = 0, aimVY = 0;   // inertial drift
+  let dragging = false;
+  let lastX=0,lastY=0;
+
+  let liveLat = null;
+  let virtualOn = false; // Drift Dial enabled
+  let virtualT = 0.0;    // 0..1
+  let lastTime = performance.now();
+
+  // ---- Helpers ----
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const rad = (deg)=>deg*Math.PI/180;
+
+  function resize(){
+    W = Math.floor(innerWidth*dpr);
+    H = Math.floor((innerHeight - document.querySelector('.panel').offsetHeight)*dpr);
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.height = (H/dpr)+'px';
+  }
+  window.addEventListener('resize', ()=>{ dpr=Math.min(2, window.devicePixelRatio||1); resize(); });
+  resize();
+
+  // Altitude at culmination (max altitude) approximation:
+  // alt_max = 90 - |lat - dec|
+  function canopusAltMax(latDeg){
+    return 90 - Math.abs(latDeg - CANOPUS_DEC_DEG);
+  }
+
+  function currentLat(){
+    if (virtualOn){
+      return lerp(LAT_A, LAT_B, virtualT);
+    }
+    if (liveLat != null) return liveLat;
+    return LAT_A; // fallback: Seoul-ish
+  }
+
+  function updateReadout(){
+    const lat = currentLat();
+    const altMax = canopusAltMax(lat);
+
+    elMode.textContent = virtualOn ? "DRIFT" : (liveLat!=null ? "LIVE" : "DEFAULT");
+    elLat.textContent = liveLat==null ? "—" : liveLat.toFixed(4)+"°";
+    elVLat.textContent = (virtualOn ? lat.toFixed(4)+"°" : "—");
+    elAltMax.textContent = altMax.toFixed(2)+"°";
+
+    const observable = altMax > 0.2; // small threshold (horizon + rough refraction margin)
+    elStatus.textContent = observable ? "OBSERVABLE (NEAR HORIZON)" : "NOT OBSERVABLE";
+    elStatus.className = "status " + (observable ? "ok":"no");
+  }
+
+  function logAttempt(tag="attempt"){
+    const lat = currentLat();
+    const altMax = canopusAltMax(lat);
+    const observable = altMax > 0.2;
+    const t = new Date().toISOString().replace('T',' ').slice(0,19);
+    const line = `${t}  ${tag}  lat=${lat.toFixed(4)}  alt_max=${altMax.toFixed(2)}  ${observable?"OK":"NO"}`;
+    const div = document.createElement('div');
+    div.textContent = line;
+    logEl.prepend(div);
+  }
+
+  // ---- Input ----
+  canvas.addEventListener('pointerdown', (e)=>{
+    dragging=true;
+    lastX=e.clientX; lastY=e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e)=>{
+    if(!dragging) return;
+    const dx = e.clientX-lastX;
+    const dy = e.clientY-lastY;
+    lastX=e.clientX; lastY=e.clientY;
+    aimVX += dx*0.001;
+    aimVY += dy*0.001;
+  });
+  canvas.addEventListener('pointerup', ()=>{
+    dragging=false;
+  });
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    // fine aim (like focus micro-adjust)
+    aimVY += Math.sign(e.deltaY)*0.02;
+  }, {passive:false});
+
+  resetBtn.addEventListener('click', ()=>{
+    aimX=aimY=aimVX=aimVY=0;
+  });
+
+  // Toggle drift UI with Shift+D
+  window.addEventListener('keydown', (e)=>{
+    if(e.shiftKey && (e.key==='D' || e.key==='d')){
+      virtualOn = !virtualOn;
+      driftUI.style.display = virtualOn ? "flex" : "none";
+      updateReadout();
+      logAttempt(virtualOn?"drift_on":"drift_off");
+    }
+  });
+  drift.addEventListener('input', ()=>{
+    virtualT = parseFloat(drift.value);
+    updateReadout();
+  });
+
+  geoBtn.addEventListener('click', ()=>{
+    if(!navigator.geolocation){
+      logAttempt("no_geolocation_api");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition((pos)=>{
+      liveLat = pos.coords.latitude;
+      updateReadout();
+      logAttempt("geo_ok");
+    }, (err)=>{
+      logAttempt("geo_denied");
+      console.warn(err);
+    }, {enableHighAccuracy:true, timeout:8000});
+  });
+
+  snapBtn.addEventListener('click', ()=>logAttempt("manual_log"));
+
+  // ---- Render: "instrument view" ----
+  function draw(tNow){
+    const dt = Math.min(0.05, (tNow-lastTime)/1000);
+    lastTime = tNow;
+
+    // inertial aim
+    aimX += aimVX; aimY += aimVY;
+    aimVX *= 0.90; aimVY *= 0.90;
+
+    // subtle return-to-center (like instrument trying to settle)
+    aimX *= 0.992;
+    aimY *= 0.992;
+
+    ctx.clearRect(0,0,W,H);
+
+    // base darkness
+    ctx.fillStyle = "#05060a";
+    ctx.fillRect(0,0,W,H);
+
+    // Create circular aperture (view hole)
+    const cx = W*0.5;
+    const cy = H*0.52;
+    const aperture = Math.min(W,H)*0.34;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, aperture, 0, Math.PI*2);
+    ctx.clip();
+
+    // inside view: noise + horizon + star candidates
+    // Noise field
+    const n = 1400; // particle-ish noise count
+    ctx.globalAlpha = 0.10;
+    for(let i=0;i<n;i++){
+      const x = (Math.random()*W);
+      const y = (Math.random()*H);
+      const r = Math.random()*1.2*dpr;
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Horizon line (moves with aimY)
+    const horizonY = cy + aperture*0.55 + aimY*aperture*0.8;
+    ctx.strokeStyle = "rgba(220,230,255,.18)";
+    ctx.lineWidth = 2*dpr;
+    ctx.beginPath();
+    ctx.moveTo(cx - aperture*1.2, horizonY);
+    ctx.lineTo(cx + aperture*1.2, horizonY);
+    ctx.stroke();
+
+    // Canopus visibility logic
+    const lat = currentLat();
+    const altMax = canopusAltMax(lat);
+    const observable = altMax > 0.2;
+
+    // Star appears near horizon when observable; otherwise it "fails" (only ghosts)
+    if(observable){
+      // Place it slightly above horizon; its altitude controls height and brightness
+      const altNorm = clamp((altMax - 0.2)/6.0, 0, 1); // Jeju-ish alt is a few degrees; normalize
+      const starY = horizonY - lerp(2*dpr, aperture*0.18, altNorm);
+      const starX = cx + aimX*aperture*0.9; // aimX acts like azimuth
+
+      // Atmospheric attenuation near horizon: make it fragile
+      const flicker = 0.6 + 0.4*Math.sin(tNow*0.003 + aimX*2.0);
+      const alpha = lerp(0.12, 0.85, altNorm) * flicker;
+
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "rgba(255,255,255,1)";
+      ctx.beginPath();
+      ctx.arc(starX, starY, lerp(1.2*dpr, 4.0*dpr, altNorm), 0, Math.PI*2);
+      ctx.fill();
+
+      // tiny bloom
+      ctx.globalAlpha = alpha*0.25;
+      ctx.beginPath();
+      ctx.arc(starX, starY, lerp(10*dpr, 34*dpr, altNorm), 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else {
+      // Ghost traces (false positives): short-lived points below/at horizon
+      const ghosts = 18;
+      for(let i=0;i<ghosts;i++){
+        const x = cx + (Math.random()-0.5)*aperture*1.6;
+        const y = horizonY + (Math.random())*aperture*0.35;
+        ctx.globalAlpha = 0.10*Math.random();
+        ctx.fillStyle = "rgba(255,255,255,1)";
+        ctx.beginPath();
+        ctx.arc(x,y,Math.random()*2.2*dpr,0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Slight vignetting inside aperture
+    const g = ctx.createRadialGradient(cx,cy,aperture*0.15,cx,cy,aperture);
+    g.addColorStop(0,"rgba(0,0,0,0)");
+    g.addColorStop(1,"rgba(0,0,0,0.65)");
+    ctx.fillStyle = g;
+    ctx.fillRect(cx-aperture, cy-aperture, aperture*2, aperture*2);
+
+    ctx.restore();
+
+    // Outside aperture: instrument body
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(0,0,W,H);
+    ctx.clearRect(cx-aperture, cy-aperture, aperture*2, aperture*2);
+
+    // aperture ring
+    ctx.strokeStyle = "rgba(255,255,255,.18)";
+    ctx.lineWidth = 6*dpr;
+    ctx.beginPath();
+    ctx.arc(cx,cy,aperture+2*dpr,0,Math.PI*2);
+    ctx.stroke();
+
+    // crosshair (faint)
+    ctx.strokeStyle = "rgba(255,255,255,.10)";
+    ctx.lineWidth = 2*dpr;
+    ctx.beginPath();
+    ctx.moveTo(cx-aperture*0.22, cy);
+    ctx.lineTo(cx+aperture*0.22, cy);
+    ctx.moveTo(cx, cy-aperture*0.22);
+    ctx.lineTo(cx, cy+aperture*0.22);
+    ctx.stroke();
+
+    // Update UI occasionally
+    if((tNow|0) % 500 < 16) updateReadout();
+
+    requestAnimationFrame(draw);
+  }
+
+  updateReadout();
+  requestAnimationFrame(draw);
+
+  // initial log
+  logAttempt("boot");
+})();
+</script>
+</body>
+</html>

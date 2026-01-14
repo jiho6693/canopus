@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CANOPUS ARCHIVE — 노인성(카노푸스) 데이터 아카이브</title>
+  <meta name="description" content="Canopus / 노인성(南極老人星) — 데이터로만 남아 있는 기준, 보이거나/안 보이는 경계의 아카이브."/>
+  <style>
+   :root{
+  --bg:#f6f1df;        /* 황백색 바탕(아이보리) */
+  --panel:#ffffffcc;   /* 카드 배경(반투명 흰색) */
+  --panel2:#fff8e9;    /* 보조 패널 */
+  --text:#1b1b1f;      /* 본문 글자: 어두운 회색 */
+  --muted:#4b4b55;     /* 보조 텍스트 */
+  --dim:#6f6f7a;       /* 더 약한 텍스트 */
+  --line:rgba(0,0,0,.10);
+  --line2:rgba(0,0,0,.06);
+
+  --accent:#ff2b2b;    /* 포인트(빨강)은 유지 */
+  --accent2:#ff7a5a;
+
+  --shadow: 0 14px 40px rgba(0,0,0,.12); /* 밝은 배경이라 그림자 약하게 */
+}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(255,43,43,.18), transparent 55%),
+        radial-gradient(900px 600px at 78% 22%, rgba(255,122,90,.10), transparent 58%),
+        radial-gradient(800px 600px at 55% 90%, rgba(120,90,255,.10), transparent 60%),
+        var(--bg);
+      color:var(--text);
+      font-family: var(--sans);
+      overflow-x:hidden;
+    }
+    a{color:inherit}
+    .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 80px}
+    header{
+      position:sticky; top:0; z-index:50;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(to bottom, rgba(7,7,10,.86), rgba(7,7,10,.55));
+      border-bottom:1px solid var(--line2);
+    }
+    .bar{max-width:1180px;margin:0 auto;padding:14px 18px;display:flex;gap:14px;align-items:center;justify-content:space-between}
+    .brand{display:flex;gap:12px;align-items:center}
+    .mark{
+      width:14px;height:14px;border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #fff, var(--accent) 40%, rgba(255,43,43,.2) 70%);
+      box-shadow: 0 0 18px rgba(255,43,43,.35);
+    }
+    .title{display:flex;flex-direction:column;line-height:1.1}
+    .title b{letter-spacing:.06em}
+    .title span{font:12px var(--mono); color:var(--muted)}
+    .nav{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .chip{
+      font:12px var(--mono);
+      padding:8px 10px;border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      cursor:pointer;
+      user-select:none;
+      transition: transform .08s ease, border-color .2s ease, background .2s ease;
+    }
+    .chip:hover{transform:translateY(-1px); border-color: rgba(255,255,255,.22); background:rgba(255,255,255,.05)}
+    .hero{
+      margin-top:22px;
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:14px;
+      align-items:stretch;
+    }
+    @media (max-width: 980px){ .hero{grid-template-columns:1fr} }
+    .card{
+      border:1px solid var(--line2);
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .pad{padding:18px}
+    .h1{
+      font-size:34px;
+      letter-spacing:-.02em;
+      margin:0 0 10px 0;
+    }
+    .sub{
+      margin:0;
+      color:var(--muted);
+      line-height:1.6;
+    }
+    .metaRow{
+      margin-top:14px;
+      display:flex;gap:10px;flex-wrap:wrap;
+    }
+    .pill{
+      font:12px var(--mono);
+      color:rgba(255,255,255,.82);
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.20);
+      padding:7px 10px;border-radius:999px;
+    }
+    .pill .k{color:var(--dim)}
+    .grid{
+      margin-top:14px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+    }
+    @media (max-width:980px){ .grid{grid-template-columns:1fr} }
+
+    .sectionHead{
+      display:flex;align-items:flex-end;justify-content:space-between;
+      gap:12px;margin:26px 0 10px 0;
+    }
+    .sectionHead h2{
+      margin:0;
+      font-size:18px;
+      letter-spacing:.02em;
+    }
+    .sectionHead .hint{
+      font:12px var(--mono);
+      color:var(--dim);
+    }
+
+    .controls{
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+      padding:12px 14px;border-bottom:1px solid var(--line2);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    .field{
+      display:flex;gap:8px;align-items:center;
+      font:12px var(--mono);
+      color:var(--muted);
+    }
+    input, select, button, textarea{
+      font: 12px var(--mono);
+      color: var(--text);
+      background: rgba(0,0,0,.22);
+      border:1px solid var(--line);
+      border-radius: 12px;
+      padding:10px 10px;
+      outline:none;
+    }
+    input:focus, select:focus, textarea:focus{border-color: rgba(255,255,255,.28)}
+    button{
+      cursor:pointer;
+      background: linear-gradient(180deg, rgba(255,43,43,.30), rgba(255,43,43,.14));
+      border-color: rgba(255,43,43,.35);
+      padding:10px 12px;
+    }
+    button:hover{filter:brightness(1.06)}
+    button.secondary{
+      background: rgba(255,255,255,.04);
+      border-color: rgba(255,255,255,.16);
+      color: var(--muted);
+    }
+
+    .table{
+      width:100%;
+      border-collapse:collapse;
+      font:12px var(--mono);
+    }
+    .table th, .table td{
+      padding:10px 10px;
+      border-bottom:1px solid var(--line2);
+      vertical-align:top;
+    }
+    .table th{color:var(--dim); font-weight:600; text-align:left}
+    .table td{color:rgba(255,255,255,.86)}
+    .tag{
+      display:inline-flex;align-items:center;gap:8px;
+      font:12px var(--mono);
+      padding:6px 10px;border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      margin-right:8px;
+      margin-bottom:8px;
+    }
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px rgba(255,43,43,.35)}
+    .archiveList{padding:12px 14px; display:grid; gap:10px}
+    .entry{
+      border:1px solid var(--line2);
+      border-radius:18px;
+      padding:14px 14px;
+      background:rgba(0,0,0,.18);
+    }
+    .entry h3{margin:0 0 6px 0; font-size:14px; letter-spacing:.01em}
+    .entry p{margin:0; color:var(--muted); line-height:1.6}
+    .entry .meta{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap}
+    .entry .meta span{font:12px var(--mono); color:var(--dim)}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row > *{flex: 1 1 200px}
+    .out{
+      padding:12px 14px;
+      font:12px var(--mono);
+      color:rgba(255,255,255,.88);
+      border-top:1px solid var(--line2);
+      background:rgba(0,0,0,.20);
+      display:grid; gap:8px;
+    }
+    .statusLine{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .badge{
+      padding:6px 10px;border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+    }
+    .badge.ok{border-color: rgba(124,255,176,.35); color: rgba(124,255,176,.95)}
+    .badge.warn{border-color: rgba(255,211,107,.35); color: rgba(255,211,107,.95)}
+    .badge.bad{border-color: rgba(255,90,122,.35); color: rgba(255,90,122,.95)}
+    .small{color:var(--dim); font:12px var(--mono); line-height:1.6}
+    footer{
+      margin-top:26px;
+      color:var(--dim);
+      font:12px var(--mono);
+      line-height:1.6;
+    }
+    .hr{height:1px;background:var(--line2);margin:22px 0}
+    .kbd{
+      font:12px var(--mono);
+      padding:2px 6px;border-radius:8px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <div class="mark"></div>
+      <div class="title">
+        <b>CANOPUS ARCHIVE</b>
+        <span>노인성(南極老人星) — “경계의 별” 데이터 아카이브</span>
+      </div>
+    </div>
+    <div class="nav">
+      <div class="chip" data-jump="#about">ABOUT</div>
+      <div class="chip" data-jump="#data">DATA</div>
+      <div class="chip" data-jump="#visibility">VISIBILITY</div>
+      <div class="chip" data-jump="#archive">ARCHIVE</div>
+      <div class="chip" data-jump="#refs">REFS</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="card">
+      <div class="pad">
+        <h1 class="h1">기준이 되려다, 늘 조금 모자란 채로 남는 별.</h1>
+        <p class="sub">
+          Canopus(α Carinae). 한국어로는 흔히 <b>노인성(老人星)</b> 혹은 <b>남극노인성</b>.
+          이 사이트는 “정보를 설명하기 위한 페이지”라기보다,
+          <b>데이터로만 남아 있는 기준</b>이 시간 속에서 계속 갱신되는 상태를 저장하는 아카이브다.
+        </p>
+
+        <div class="metaRow">
+          <span class="pill"><span class="k">app. mag</span> -0.74</span>
+          <span class="pill"><span class="k">spectral</span> A9II</span>
+          <span class="pill"><span class="k">distance</span> ~310 ly</span>
+          <span class="pill"><span class="k">dec</span> ~ -52° 42′</span>
+          <span class="pill"><span class="k">north limit</span> ~37°N</span>
+        </div>
+
+        <div class="hr"></div>
+
+        <p class="small">
+          ※ 관측/가시성은 “그 별이 존재하느냐”가 아니라 <b>관측 조건(위도·고도·굴절·대기·지평선)</b>이 좌우한다.
+          이 아카이브는 그 조건들을 <b>정리하면서도 정리하지 않는 방식</b>으로 유지한다.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="controls">
+        <div class="field_opcode field">
+          <span>Color drift</span>
+          <select id="driftMode">
+            <option value="sunset">Sunset-red (evening → red)</option>
+            <option value="fixed">Fixed accent</option>
+            <option value="pulse">Slow pulse</option>
+          </select>
+        </div>
+        <div class="field">
+          <span>Local time</span>
+          <span class="kbd" id="clock">--:--:--</span>
+        </div>
+        <button class="secondary" id="toggleAmbient">Ambient ON/OFF</button>
+      </div>
+
+      <div class="pad">
+        <div class="sectionHead">
+          <h2>Quick view</h2>
+          <div class="hint">“남쪽으로 갈수록 보이는 정도가 달라진다”</div>
+        </div>
+
+        <table class="table" id="quickTable"></table>
+
+        <div class="hr"></div>
+
+        <div class="small">
+          이 페이지의 기본 데이터는 공개 자료(천문 데이터/좌표/등급 등)에서 요약했다. :contentReference[oaicite:2]{index=2}
+          “한국에서의 관측”은 서귀포 중심으로 자주 소개되며(최적지/행사 등), 관련 기사·소개 글을 참고했다. :contentReference[oaicite:3]{index=3}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid">
+
+    <section class="card" id="about">
+      <div class="pad">
+        <div class="sectionHead">
+          <h2>ABOUT</h2>
+          <div class="hint">아카이브의 태도</div>
+        </div>
+
+        <div class="tag"><span class="dot"></span> 기준 / 경계 / 유예</div>
+        <div class="tag"><span class="dot"></span> 가시성(visibility) = 조건의 문제</div>
+        <div class="tag"><span class="dot"></span> “알았는데 남는 것”</div>
+
+        <p class="sub" style="margin-top:10px">
+          Canopus는 남쪽 하늘에 매우 낮게 떠서, 북반구의 많은 지역에서는 <b>‘계산할 수 있지만 보기 어려운’</b> 별로 남는다.
+          그래서 이 아카이브는 ‘정리된 지식’보다, <b>정리되지 않는 상태(경계/불확실성/기다림)</b>를 보존한다.
+        </p>
+      </div>
+    </section>
+
+    <section class="card" id="data">
+      <div class="controls">
+        <div class="field">
+          <span>Search</span>
+          <input id="q" placeholder="예: magnitude, 노인성, latitude, RA..." style="min-width:240px" />
+        </div>
+        <div class="field">
+          <span>Filter</span>
+          <select id="filter">
+            <option value="all">All</option>
+            <option value="astro">Astronomy</option>
+            <option value="korea">Korea / East Asia</option>
+            <option value="method">Method / Notes</option>
+          </select>
+        </div>
+        <button id="downloadJSON" class="secondary">Export JSON</button>
+      </div>
+
+      <div class="pad">
+        <div class="sectionHead">
+          <h2>DATASET</h2>
+          <div class="hint">텍스트/수치/메모를 “같은 층위”로 저장</div>
+        </div>
+
+        <table class="table" id="dataTable"></table>
+      </div>
+    </section>
+
+    <section class="card" id="visibility">
+      <div class="controls">
+        <div class="field">
+          <span>Latitude</span>
+          <input id="lat" type="number" step="0.0001" value="37.5665" />
+        </div>
+        <div class="field">
+          <span>Longitude</span>
+          <input id="lon" type="number" step="0.0001" value="126.9780" />
+        </div>
+        <div class="field">
+          <span>Date</span>
+          <input id="date" type="date" />
+        </div>
+        <div class="field">
+          <span>Time</span>
+          <input id="time" type="time" step="1" />
+        </div>
+        <button id="useGPS">Use GPS</button>
+        <button id="calc">Calculate</button>
+      </div>
+
+      <div class="pad">
+        <div class="sectionHead">
+          <h2>VISIBILITY CHECK</h2>
+          <div class="hint">고도(altitude) / 방위각(azimuth) 추정</div>
+        </div>
+
+        <p class="sub">
+          아래 계산은 대략적인 천구좌표 계산(시각·위치 기반)이며,
+          실제 관측은 <b>지평선 장애물·대기 투명도·고도·굴절</b>에 크게 좌우된다.
+          그래도 “경계에 걸린 별”이 얼마나 쉽게/어렵게 보이는지 감각을 잡는 데는 충분하다.
+        </p>
+      </div>
+
+      <div class="out" id="visOut"></div>
+    </section>
+
+    <section class="card" id="archive">
+      <div class="pad">
+        <div class="sectionHead">
+          <h2>ARCHIVE NOTES</h2>
+          <div class="hint">자료가 “서사”가 되지 못하도록, 하지만 “남도록”</div>
+        </div>
+      </div>
+      <div class="archiveList" id="archiveList"></div>
+    </section>
+
+  </div>
+
+  <section class="card" id="refs" style="margin-top:14px">
+    <div class="pad">
+      <div class="sectionHead">
+        <h2>REFERENCES</h2>
+        <div class="hint">출처 / 링크(텍스트만)</div>
+      </div>
+      <div class="small" id="refsBox"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="hr"></div>
+    <div>
+      TIP: 전시장에서 관객의 위치(GPS)에 따른 변화는 <b>HTTPS</b>에서 안정적으로 동작한다.
+      GitHub Pages / Netlify 같은 정적 호스팅을 쓰면 된다. (로컬 파일 열기만으로는 권한 팝업이 제한될 수 있음)
+    </div>
+  </footer>
+
+</div>
+
+<script>
+/**
+ * CANOPUS ARCHIVE — single-file site
+ * - Built-in dataset (editable)
+ * - Search & filter
+ * - Visibility calculator (approx)
+ * - Ambient “sunset-red” drift
+ */
+
+/* =========================
+   0) Core dataset (edit here)
+   ========================= */
+
+const DATA = [
+  // Astronomy core
+  {key:"name", value:"Canopus", type:"astro", note:"Bayer: α Carinae (Alpha Car)", source:"Wikipedia/astronomy refs"},
+  {key:"korean_name", value:"노인성(老人星), 남극노인성", type:"korea", note:"동아시아권 별칭", source:"Korean Wikipedia"},
+  {key:"constellation", value:"Carina (용골자리)", type:"astro", note:"Southern sky", source:"Wikipedia"},
+  {key:"apparent_magnitude_V", value:"-0.74", type:"astro", note:"밤하늘에서 시리우스 다음으로 매우 밝음", source:"Wikipedia"},
+  {key:"spectral_type", value:"A9II (bright giant)", type:"astro", note:"육안으로는 거의 흰색(백색/황백색으로도 서술)", source:"Wikipedia / glyphweb"},
+  {key:"distance", value:"~310 light-years (~95 pc)", type:"astro", note:"Hipparcos 기반 추정치로 널리 인용", source:"Wikipedia / glyphweb"},
+  {key:"coordinates_J2000", value:"RA 06h 23m 57s / Dec -52° 41′ 44″", type:"astro", note:"표준좌표(근사)", source:"glyphweb"},
+  {key:"declination", value:"~ -52° 42′", type:"astro", note:"북방한계(이론상)와 직결", source:"Wikipedia (EN/KO)"},
+  {key:"north_visibility_limit", value:"~ 37°N 부근(이론상)", type:"astro", note:"서울 위도와 거의 비슷한 경계선으로 자주 언급", source:"Wikipedia (EN/KO)"},
+  {key:"culmination_note", value:"남반구에서 12~2월 무렵 야간에 높게, 북반구에서는 지평선 근처", type:"astro", note:"계절/위도에 따라 체감이 급변", source:"Wikipedia"},
+  // Korea / cultural notes (keep gentle)
+  {key:"korea_observation_general", value:"한국에선 남쪽일수록 관측 가능성이 커진다고 소개됨", type:"korea", note:"서귀포 관측 이야기 등이 반복됨", source:"Jeju local articles"},
+  {key:"seogwipo_note", value:"서귀포(제주 남부)에서 노인성 관측이 가능하다는 소개가 많음", type:"korea", note:"행사/관측지 언급", source:"Jeju/Seogwipo articles"},
+  {key:"busan_note", value:"부산 등 남해안에서는 매우 낮은 고도로 ‘조건이 좋을 때’ 관측 가능하다고 종종 언급됨", type:"korea", note:"지평선/대기 조건 영향 큼", source:"Common observational notes"},
+  {key:"seoul_note", value:"서울은 이론적 경계에 가까워 관측이 어렵거나 불안정하게 서술됨", type:"korea", note:"위도 경계선과 근접", source:"Korean Wikipedia"},
+  {key:"omen_tradition", value:"옛 기록/전승에서 ‘나라가 안정되면 보인다’ 같은 서술로 의미화되곤 함", type:"korea", note:"민간·기록 서술의 레이어", source:"Local articles"},
+  // Method notes
+  {key:"visibility_is_condition", value:"‘존재’가 아니라 ‘조건’이 보이게/안 보이게 한다", type:"method", note:"위도·굴절·지평선·대기", source:"Astronomy basics"},
+  {key:"archive_attitude", value:"정리(설명) 대신 ‘갱신되는 상태’를 저장하는 아카이브", type:"method", note:"영상/웹의 긴장", source:"Artist note"},
+];
+
+const ARCHIVE = [
+  {
+    title:"경계선으로서의 별",
+    body:"카노푸스는 ‘알고 있지만 보기 어려운’ 별의 전형이다. 데이터는 확실한데, 관측은 조건에 붙잡힌다. 이 차이가 아카이브의 긴장을 만든다.",
+    meta:["tag:threshold","mode:astronomy→ethics"]
+  },
+  {
+    title:"‘남쪽으로 갈수록’의 미세한 차이",
+    body:"같은 별이 ‘제주–부산–서울’에서 다르게 서술된다. 한 줄짜리 위도 차이가 생활·기억·제도의 체감과 연결된다.",
+    meta:["tag:latitude","tag:mobility"]
+  },
+  {
+    title:"기록이 서사가 되는 순간을 유예하기",
+    body:"설명은 감정을 회수한다. 이 아카이브는 설명 대신, 갱신/확인/망설임의 리듬을 남긴다. ‘뭔지 모르겠는데 계속 남는’ 상태를 목표로 한다.",
+    meta:["tag:duration","tag:afterimage"]
+  }
+];
+
+/* =========================
+   1) UI helpers
+   ========================= */
+
+const $ = (s)=>document.querySelector(s);
+const $$ = (s)=>Array.from(document.querySelectorAll(s));
+
+$$(".chip").forEach(ch=>{
+  ch.addEventListener("click", ()=>{
+    const id = ch.dataset.jump;
+    const el = document.querySelector(id);
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  });
+});
+
+function fmtRow(k,v,note,src){
+  const safe = (x)=> String(x ?? "").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  return `
+    <tr>
+      <th>${safe(k)}</th>
+      <td>${safe(v)}<div style="margin-top:6px;color:var(--dim);font:12px var(--mono)">${safe(note||"")}</div></td>
+      <td style="color:var(--dim)">${safe(src||"")}</td>
+    </tr>
+  `;
+}
+
+function renderQuick(){
+  const rows = [
+    // Keep it simple + evocative
+    ["ID","Canopus / α Carinae","(노인성/남극노인성)",":contentReference[oaicite:4]{index=4}"],
+    ["Brightness","V ≈ -0.74","(2nd brightest star in night sky)",":contentReference[oaicite:5]{index=5}"],
+    ["Type","A9II bright giant","white-ish to naked eye",":contentReference[oaicite:6]{index=6}"],
+    ["Distance","~310 ly (~95 pc)","Hipparcos-based common value",":contentReference[oaicite:7]{index=7}"],
+    ["Visibility(N)","~37°N limit (theory)","Korea sits near the boundary",":contentReference[oaicite:8]{index=8}"],
+  ];
+  let html = `<tr><th>field</th><th>value</th><th>note</th><th>ref</th></tr>`;
+  for(const r of rows){
+    html += `<tr>
+      <td style="color:var(--dim);font-weight:600">${r[0]}</td>
+      <td>${r[1]}</td>
+      <td style="color:var(--muted)">${r[2]}</td>
+      <td style="color:var(--dim)">${r[3]}</td>
+    </tr>`;
+  }
+  $("#quickTable").innerHTML = html;
+}
+
+function renderData(){
+  const q = ($("#q").value||"").trim().toLowerCase();
+  const f = $("#filter").value;
+
+  const items = DATA.filter(d=>{
+    const hitQ = !q || [d.key,d.value,d.note,d.source].some(x=>String(x||"").toLowerCase().includes(q));
+    const hitF = (f==="all") || (d.type===f);
+    return hitQ && hitF;
+  });
+
+  let html = `<tr><th>key</th><th>value / note</th><th>source</th></tr>`;
+  for(const d of items){
+    html += fmtRow(d.key, d.value, d.note, d.source);
+  }
+  $("#dataTable").innerHTML = html;
+}
+
+function renderArchive(){
+  const box = $("#archiveList");
+  box.innerHTML = "";
+  for(const e of ARCHIVE){
+    const el = document.createElement("div");
+    el.className = "entry";
+    el.innerHTML = `
+      <h3>${e.title}</h3>
+      <p>${e.body}</p>
+      <div class="meta">${(e.meta||[]).map(m=>`<span>${m}</span>`).join("")}</div>
+    `;
+    box.appendChild(el);
+  }
+}
+
+function renderRefs(){
+  // Keep as plain text “reference memory”
+  const refs = [
+    "Wikipedia (EN): Canopus — brightness/type/distance/visibility limit",
+    "Wikipedia (KO): 카노푸스 — 한국어 서술/위도 경계/서울 언급",
+    "GlyphWeb eSky: Canopus — RA/Dec, distance, magnitude",
+    "제주/서귀포 관련 기사/소개 글: 노인성 관측(서귀포 중심) 반복 서술",
+  ];
+  $("#refsBox").innerHTML = refs.map(r=>`• ${r}`).join("<br/>");
+}
+
+/* =========================
+   2) Export JSON
+   ========================= */
+$("#downloadJSON").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify({updated:new Date().toISOString(), data:DATA, archive:ARCHIVE}, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "canopus-archive.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* =========================
+   3) Visibility calculator (approx)
+   - Uses RA/Dec fixed (J2000-ish) and sidereal time
+   - Good enough for “boundary feeling”
+   ========================= */
+
+// Canopus approx coordinates (J2000) from glyphweb-like listings
+const CANOPUS = {
+  ra_h: 6, ra_m: 23, ra_s: 57,
+  dec_deg: -52, dec_min: 41, dec_sec: 44
+};
+
+function raToDeg(h,m,s){ return (h + m/60 + s/3600) * 15; }
+function decToDeg(d,m,s){
+  const sign = d<0 ? -1 : 1;
+  return d + sign*(m/60 + s/3600);
+}
+const CAN_RA = raToDeg(CANOPUS.ra_h, CANOPUS.ra_m, CANOPUS.ra_s);
+const CAN_DEC = decToDeg(CANOPUS.dec_deg, CANOPUS.dec_min, CANOPUS.dec_sec);
+
+function toRad(d){ return d*Math.PI/180; }
+function toDeg(r){ return r*180/Math.PI; }
+
+// Julian Date from UTC date
+function julianDate(date){
+  const y = date.getUTCFullYear();
+  const m0 = date.getUTCMonth()+1;
+  const D = date.getUTCDate() +
+    (date.getUTCHours() + date.getUTCMinutes()/60 + date.getUTCSeconds()/3600)/24;
+
+  let y2=y, m=m0;
+  if(m<=2){ y2-=1; m+=12; }
+  const A = Math.floor(y2/100);
+  const B = 2 - A + Math.floor(A/4);
+  const JD = Math.floor(365.25*(y2+4716)) + Math.floor(30.6001*(m+1)) + D + B - 1524.5;
+  return JD;
+}
+
+// Greenwich Mean Sidereal Time (deg)
+function gmstDeg(jd){
+  const T = (jd - 2451545.0)/36525.0;
+  let gmst = 280.46061837 + 360.98564736629*(jd-2451545.0) + 0.000387933*T*T - (T*T*T)/38710000.0;
+  gmst = ((gmst % 360) + 360) % 360;
+  return gmst;
+}
+
+// Local Sidereal Time (deg)
+function lstDeg(jd, lonDeg){
+  let lst = gmstDeg(jd) + lonDeg;
+  lst = ((lst % 360) + 360) % 360;
+  return lst;
+}
+
+function altAz(latDeg, lonDeg, dateUTC){
+  const jd = julianDate(dateUTC);
+  const LST = lstDeg(jd, lonDeg);
+  let HA = LST - CAN_RA;
+  HA = ((HA % 360) + 360) % 360;
+  if(HA>180) HA -= 360;
+
+  const lat = toRad(latDeg);
+  const dec = toRad(CAN_DEC);
+  const ha  = toRad(HA);
+
+  const sinAlt = Math.sin(dec)*Math.sin(lat) + Math.cos(dec)*Math.cos(lat)*Math.cos(ha);
+  const alt = Math.asin(sinAlt);
+
+  const cosAz = (Math.sin(dec) - Math.sin(alt)*Math.sin(lat)) / (Math.cos(alt)*Math.cos(lat));
+  let az = Math.acos(Math.max(-1, Math.min(1, cosAz))); // 0..pi
+  // Resolve quadrant using sin(HA)
+  if(Math.sin(ha) > 0) az = 2*Math.PI - az;
+
+  return {altDeg: toDeg(alt), azDeg: toDeg(az), HAdeg: HA, LSTdeg: LST, jd};
+}
+
+function niceAz(az){
+  const dirs = ["N","NE","E","SE","S","SW","W","NW","N"];
+  const idx = Math.round(az/45);
+  return `${dirs[idx]} (${az.toFixed(1)}°)`;
+}
+
+function classify(alt){
+  // Rough thresholds: below 0 = below horizon
+  // 0..2 = extreme horizon (almost impossible), 2..5 = very hard, >5 = possible
+  if(alt < 0) return {cls:"bad", label:"Below horizon"};
+  if(alt < 2) return {cls:"bad", label:"At the horizon (extremely hard)"};
+  if(alt < 5) return {cls:"warn", label:"Very low (hard)"};
+  return {cls:"ok", label:"Above (possible, still condition-dependent)"};
+}
+
+function formatUTCfromLocalInput(dateStr, timeStr){
+  // Interpret input as local time in Asia/Seoul by default.
+  // We'll build a Date with local components (browser local timezone),
+  // then convert to UTC automatically. (In the exhibition machine, set TZ to KST)
+  const [yy,mm,dd] = dateStr.split("-").map(Number);
+  const [HH,MM,SS] = (timeStr||"00:00:00").split(":").map(x=>Number(x||0));
+  return new Date(yy, mm-1, dd, HH, MM, SS||0);
+}
+
+function renderVis(){
+  const lat = parseFloat($("#lat").value);
+  const lon = parseFloat($("#lon").value);
+  const dateStr = $("#date").value;
+  const timeStr = $("#time").value || "00:00:00";
+  if(!Number.isFinite(lat) || !Number.isFinite(lon) || !dateStr){
+    $("#visOut").innerHTML = `<div class="statusLine"><span class="badge bad">Need inputs</span><span class="small">Latitude/Longitude/Date are required.</span></div>`;
+    return;
+  }
+
+  const dtLocal = formatUTCfromLocalInput(dateStr, timeStr);
+  const r = altAz(lat, lon, new Date(dtLocal.toISOString())); // ensure UTC consistency
+  const state = classify(r.altDeg);
+
+  // A tiny "refraction allowance" note
+  const refNote = (r.altDeg>-1 && r.altDeg<1)
+    ? " (Atmospheric refraction may lift it slightly, but practical visibility is still extremely fragile.)"
+    : "";
+
+  $("#visOut").innerHTML = `
+    <div class="statusLine">
+      <span class="badge ${state.cls}">${state.label}</span>
+      <span class="badge">Alt: ${r.altDeg.toFixed(2)}°</span>
+      <span class="badge">Az: ${niceAz(r.azDeg)}</span>
+      <span class="badge">HA: ${r.HAdeg.toFixed(2)}°</span>
+    </div>
+    <div class="small">
+      Local input: ${dateStr} ${timeStr}  /  computed with fixed RA/Dec (J2000-ish).<br/>
+      Interpretation: at these coordinates, Canopus is ${state.label.toLowerCase()}.${refNote}<br/>
+      Reminder: obstacles near the southern horizon often matter more than math.
+    </div>
+  `;
+}
+
+$("#calc").addEventListener("click", renderVis);
+
+$("#useGPS").addEventListener("click", ()=>{
+  if(!navigator.geolocation){
+    alert("Geolocation not supported in this browser.");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      $("#lat").value = pos.coords.latitude.toFixed(6);
+      $("#lon").value = pos.coords.longitude.toFixed(6);
+      renderVis();
+    },
+    (err)=>{
+      alert("Geolocation error: " + err.message + "\n(HTTPS 환경에서 더 잘 동작해요)");
+    },
+    {enableHighAccuracy:true, timeout:9000}
+  );
+});
+
+/* =========================
+   4) Ambient “evening → red”
+   ========================= */
+
+let ambientOn = true;
+
+function setAccent(val){
+  document.documentElement.style.setProperty("--accent", val);
+}
+
+function tickClock(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  const ss = String(now.getSeconds()).padStart(2,"0");
+  $("#clock").textContent = `${hh}:${mm}:${ss}`;
+}
+setInterval(tickClock, 300);
+tickClock();
+
+function sunsetDrift(){
+  if(!ambientOn) return;
+
+  const mode = $("#driftMode").value;
+  const now = new Date();
+  const t = (now.getHours() + now.getMinutes()/60 + now.getSeconds()/3600);
+
+  if(mode==="fixed"){
+    setAccent("#ff2b2b");
+    return;
+  }
+  if(mode==="pulse"){
+    const k = 0.5 + 0.5*Math.sin((now.getTime()/1000) * (2*Math.PI/60)); // 60s cycle
+    // interpolate red ↔ warm
+    const r = Math.round(255);
+    const g = Math.round(43 + k*55);
+    const b = Math.round(43 + k*40);
+    setAccent(`rgb(${r},${g},${b})`);
+    return;
+  }
+
+  // sunset mode: evening (18~24) increases redness; day is calmer
+  // map t in [0..24] -> redness factor
+  let k;
+  if(t < 16) k = 0.20;
+  else if(t < 18) k = 0.35 + (t-16)/2*0.25;
+  else if(t < 22) k = 0.60 + (t-18)/4*0.35;
+  else k = 0.95;
+
+  const r = 255;
+  const g = Math.round(30 + (1-k)*70);  // less green at night
+  const b = Math.round(30 + (1-k)*85);  // less blue at night
+  setAccent(`rgb(${r},${g},${b})`);
+}
+
+$("#toggleAmbient").addEventListener("click", ()=>{
+  ambientOn = !ambientOn;
+  $("#toggleAmbient").textContent = ambientOn ? "Ambient ON/OFF" : "Ambient OFF (fixed)";
+  if(!ambientOn) setAccent("#ff2b2b");
+});
+setInterval(sunsetDrift, 500);
+sunsetDrift();
+
+/* =========================
+   5) Init defaults
+   ========================= */
+
+function initDateTime(){
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth()+1).padStart(2,"0");
+  const dd = String(now.getDate()).padStart(2,"0");
+  $("#date").value = `${yyyy}-${mm}-${dd}`;
+  const HH = String(now.getHours()).padStart(2,"0");
+  const MM = String(now.getMinutes()).padStart(2,"0");
+  const SS = String(now.getSeconds()).padStart(2,"0");
+  $("#time").value = `${HH}:${MM}:${SS}`;
+}
+initDateTime();
+
+renderQuick();
+renderData();
+renderArchive();
+renderRefs();
+renderVis();
+
+$("#q").addEventListener("input", renderData);
+$("#filter").addEventListener("change", renderData);
+</script>
+
+</body>
+</html>
